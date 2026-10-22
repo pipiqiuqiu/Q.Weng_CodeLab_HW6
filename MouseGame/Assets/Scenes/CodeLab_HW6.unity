@@ -1178,8 +1178,6 @@ MonoBehaviour:
   directionIndicator: {fileID: 771257602}
   gridBoard: {fileID: 908078314}
   edgePadding: 0.6
-  inMaterial: {fileID: 2100000, guid: 6c2e281264c1e6142ba9d155526dda22, type: 2}
-  damageMaterial: {fileID: 2100000, guid: d1f665e747cce92469d0b52291b8360c, type: 2}
   gatherDuration: 0.1
   stretchDuration: 0.1
   compressedLengthFraction: 0.1
@@ -11663,6 +11661,51 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 32540fb2381c1d0469feb5e928db3c08, type: 3}
+--- !u!1 &880000100
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 880000101}
+  - component: {fileID: 880000102}
+  m_Layer: 0
+  m_Name: Game HUD
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &880000101
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 880000100}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &880000102
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 880000100}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f438b00b59a34d24b2cfb13b270be99b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameHUD
+  roundDuration: 30
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -11672,3 +11715,4 @@ SceneRoots:
   - {fileID: 305133663}
   - {fileID: 908078314}
   - {fileID: 1645702841}
+  - {fileID: 880000101}

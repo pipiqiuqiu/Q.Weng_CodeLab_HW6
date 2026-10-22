@@ -12,8 +12,6 @@ public sealed class InchwormLocomotion : MonoBehaviour
     [Header("Board")]
     [SerializeField] private Transform gridBoard;
     [SerializeField, Min(0f)] private float edgePadding = 0.6f;
-    [SerializeField] private Material inMaterial;
-    [SerializeField] private Material damageMaterial;
 
     [Header("Motion")]
     [SerializeField, Min(0.05f)] private float gatherDuration = 0.6f;
@@ -38,17 +36,17 @@ public sealed class InchwormLocomotion : MonoBehaviour
     private float maxX;
     private float minZ;
     private float maxZ;
-    private MeshRenderer[] tiles;
+    private Bounds[] tileBounds;
+    private FloorBreak[] tileBreaks;
     private bool[] damagedTiles;
     private int currentTile = -1;
 
     private void OnEnable()
     {
         if (head == null || middleFront == null || middleBack == null || tail == null ||
-            directionIndicator == null || gridBoard == null || inMaterial == null ||
-            damageMaterial == null || head.parent != transform)
+            directionIndicator == null || gridBoard == null || head.parent != transform)
         {
-            Debug.LogError("InchwormLocomotion needs the segments, direction indicator, grid board, and tile materials.", this);
+            Debug.LogError("InchwormLocomotion needs the segments, direction indicator, and grid board.", this);
             enabled = false;
             return;
         }
@@ -63,8 +61,7 @@ public sealed class InchwormLocomotion : MonoBehaviour
         Vector3 initialFront = middleFront.position;
         Vector3 initialBack = middleBack.position;
         Vector3 initialTail = tail.position;
-
-        // Keep the worm root at the head so its position follows each forward stroke.
+        
         transform.position = initialHead;
         head.position = initialHead;
         middleFront.position = initialFront;
@@ -95,7 +92,7 @@ public sealed class InchwormLocomotion : MonoBehaviour
         float lengthSquared = restLength * restLength;
         frontFraction = Mathf.Clamp01(Vector3.Dot(initialFront - initialHead, body) / lengthSquared);
         backFraction = Mathf.Clamp01(Vector3.Dot(initialBack - initialHead, body) / lengthSquared);
-        damagedTiles = new bool[tiles.Length];
+        damagedTiles = new bool[tileBounds.Length];
         currentTile = -1;
         UpdateCurrentTile();
         BeginGather();
@@ -158,8 +155,7 @@ public sealed class InchwormLocomotion : MonoBehaviour
         if (heading.sqrMagnitude < 0.000001f)
             heading = headStart - tailStart;
         heading.Normalize();
-
-        // Extend along the selected direction until the head-tail spacing is restored.
+        
         Vector3 fromTail = headStart - tailStart;
         fromTail.y = 0f;
         float alongHeading = Vector3.Dot(fromTail, heading);
@@ -186,16 +182,29 @@ public sealed class InchwormLocomotion : MonoBehaviour
 
     private bool SetBoardLimits()
     {
-        tiles = gridBoard.GetComponentsInChildren<MeshRenderer>();
+        MeshRenderer[] tiles = gridBoard.GetComponentsInChildren<MeshRenderer>();
         if (tiles.Length == 0)
         {
             Debug.LogError("The grid board has no cube tiles.", this);
             return false;
         }
 
-        Bounds bounds = tiles[0].bounds;
+        tileBounds = new Bounds[tiles.Length];
+        tileBreaks = new FloorBreak[tiles.Length];
+        for (int i = 0; i < tiles.Length; i++)
+        {
+            tileBounds[i] = tiles[i].bounds;
+            tileBreaks[i] = tiles[i].GetComponentInChildren<FloorBreak>();
+            if (tileBreaks[i] == null)
+            {
+                Debug.LogError($"Grid tile {tiles[i].name} is missing FloorBreak.", tiles[i]);
+                return false;
+            }
+        }
+
+        Bounds bounds = tileBounds[0];
         for (int i = 1; i < tiles.Length; i++)
-            bounds.Encapsulate(tiles[i].bounds);
+            bounds.Encapsulate(tileBounds[i]);
 
         minX = bounds.min.x + edgePadding;
         maxX = bounds.max.x - edgePadding;
@@ -256,20 +265,17 @@ public sealed class InchwormLocomotion : MonoBehaviour
             return;
 
         if (currentTile >= 0)
-        {
             damagedTiles[currentTile] = true;
-            tiles[currentTile].sharedMaterial = damageMaterial;
-        }
 
         currentTile = nextTile;
-        tiles[currentTile].sharedMaterial = inMaterial;
+        tileBreaks[currentTile].PlayBreak();
     }
 
     private int FindTile(Vector3 position)
     {
-        for (int i = 0; i < tiles.Length; i++)
+        for (int i = 0; i < tileBounds.Length; i++)
         {
-            Bounds bounds = tiles[i].bounds;
+            Bounds bounds = tileBounds[i];
             if (position.x >= bounds.min.x && position.x < bounds.max.x &&
                 position.z >= bounds.min.z && position.z < bounds.max.z)
                 return i;
@@ -280,9 +286,9 @@ public sealed class InchwormLocomotion : MonoBehaviour
 
     private float MaxTravelBeforeDamage(Vector3 origin, Vector3 direction, float travel)
     {
-        for (int i = 0; i < tiles.Length; i++)
+        for (int i = 0; i < tileBounds.Length; i++)
         {
-            if (!damagedTiles[i] || !TryEnterTile(origin, direction, tiles[i].bounds, out float entry))
+            if (!damagedTiles[i] || !TryEnterTile(origin, direction, tileBounds[i], out float entry))
                 continue;
 
             if (entry <= travel)

@@ -124,6 +124,7 @@ GameObject:
   - component: {fileID: 663485333672778472}
   - component: {fileID: 6739271945242817211}
   - component: {fileID: 7242483385658742310}
+  - component: {fileID: 7636342830951020084}
   m_Layer: 0
   m_Name: Sprite-0002-Sheet_2
   m_TagString: Untagged
@@ -141,7 +142,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
   m_LocalPosition: {x: 0, y: 1.2, z: -0}
-  m_LocalScale: {x: 1.5, y: 1.5, z: 1.5}
+  m_LocalScale: {x: 1.6000001, y: 1.6000001, z: 1.6000001}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 3615137941557841411}
@@ -154,7 +155,7 @@ SpriteRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6136278631101042253}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 0
   m_ReceiveShadows: 0
   m_DynamicOccludee: 1
@@ -195,7 +196,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 1032411986, guid: c7d86cb7cadc07041812a71097fbf299, type: 3}
+  m_Sprite: {fileID: 54620541728290854, guid: c7d86cb7cadc07041812a71097fbf299, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -228,3 +229,15 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &7636342830951020084
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6136278631101042253}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0a857f15423e20f49863cfcb16710c17, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: '::'
