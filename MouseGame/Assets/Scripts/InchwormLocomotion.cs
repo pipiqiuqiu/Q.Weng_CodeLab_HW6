@@ -11,7 +11,6 @@ public sealed class InchwormLocomotion : MonoBehaviour
 
     [Header("Board")]
     [SerializeField] private Transform gridBoard;
-    [SerializeField, Min(0f)] private float edgePadding = 0.6f;
 
     [Header("Motion")]
     [SerializeField, Min(0.05f)] private float gatherDuration = 0.6f;
@@ -32,14 +31,10 @@ public sealed class InchwormLocomotion : MonoBehaviour
     private Vector3 tailTarget;
     private Quaternion headRotationStart;
     private Quaternion headRotationTarget;
-    private float minX;
-    private float maxX;
-    private float minZ;
-    private float maxZ;
-    private Bounds[] tileBounds;
-    private FloorBreak[] tileBreaks;
-    private bool[] damagedTiles;
-    private int currentTile = -1;
+    private SphereCollider headCollider;
+    private BoxCollider[] floorColliders;
+    private FloorBreak[] floorBreaks;
+    private FloorBreak currentFloor;
 
     private void OnEnable()
     {
@@ -51,8 +46,10 @@ public sealed class InchwormLocomotion : MonoBehaviour
             return;
         }
 
-        if (!SetBoardLimits())
+        headCollider = head.GetComponent<SphereCollider>();
+        if (headCollider == null || !CacheFloors())
         {
+            Debug.LogError("The head needs a SphereCollider and each floor needs a BoxCollider and FloorBreak.", this);
             enabled = false;
             return;
         }
@@ -61,23 +58,12 @@ public sealed class InchwormLocomotion : MonoBehaviour
         Vector3 initialFront = middleFront.position;
         Vector3 initialBack = middleBack.position;
         Vector3 initialTail = tail.position;
-        
+
         transform.position = initialHead;
         head.position = initialHead;
         middleFront.position = initialFront;
         middleBack.position = initialBack;
         tail.position = initialTail;
-
-        if (!FitWormInsideBoard())
-        {
-            enabled = false;
-            return;
-        }
-
-        initialHead = head.position;
-        initialFront = middleFront.position;
-        initialBack = middleBack.position;
-        initialTail = tail.position;
 
         Vector3 body = initialTail - initialHead;
         body.y = 0f;
@@ -92,9 +78,16 @@ public sealed class InchwormLocomotion : MonoBehaviour
         float lengthSquared = restLength * restLength;
         frontFraction = Mathf.Clamp01(Vector3.Dot(initialFront - initialHead, body) / lengthSquared);
         backFraction = Mathf.Clamp01(Vector3.Dot(initialBack - initialHead, body) / lengthSquared);
-        damagedTiles = new bool[tileBounds.Length];
-        currentTile = -1;
-        UpdateCurrentTile();
+        currentFloor = null;
+        currentFloor = FindFloorAt(head.position);
+        if (currentFloor == null)
+        {
+            Debug.LogError("The inchworm's head must start on an active floor.", this);
+            enabled = false;
+            return;
+        }
+
+        currentFloor.PlayBreak();
         BeginGather();
     }
 
@@ -117,7 +110,7 @@ public sealed class InchwormLocomotion : MonoBehaviour
             tail.position = tailStart;
             head.rotation = Quaternion.Slerp(headRotationStart, headRotationTarget, smoothT);
             PositionMiddleSegments(1f - smoothT);
-            UpdateCurrentTile();
+            UpdateCurrentFloor();
         }
 
         if (phaseTime >= duration)
@@ -155,14 +148,13 @@ public sealed class InchwormLocomotion : MonoBehaviour
         if (heading.sqrMagnitude < 0.000001f)
             heading = headStart - tailStart;
         heading.Normalize();
-        
+
         Vector3 fromTail = headStart - tailStart;
         fromTail.y = 0f;
         float alongHeading = Vector3.Dot(fromTail, heading);
         float discriminant = alongHeading * alongHeading + restLength * restLength - fromTail.sqrMagnitude;
         float travel = Mathf.Max(0f, -alongHeading + Mathf.Sqrt(Mathf.Max(0f, discriminant)));
-        travel = Mathf.Min(travel, MaxTravelInsideBoard(headStart, heading));
-        travel = MaxTravelBeforeDamage(headStart, heading, travel);
+        travel = MaxTravelOnFloors(headStart, heading, travel);
         headTarget = headStart + heading * travel;
 
         headRotationStart = head.rotation;
@@ -180,162 +172,85 @@ public sealed class InchwormLocomotion : MonoBehaviour
             Vector3.up * (Mathf.Sin(Mathf.PI * backFraction) * archHeight * archAmount);
     }
 
-    private bool SetBoardLimits()
+    private bool CacheFloors()
     {
-        MeshRenderer[] tiles = gridBoard.GetComponentsInChildren<MeshRenderer>();
-        if (tiles.Length == 0)
-        {
-            Debug.LogError("The grid board has no cube tiles.", this);
+        floorBreaks = gridBoard.GetComponentsInChildren<FloorBreak>();
+        if (floorBreaks.Length == 0)
             return false;
-        }
 
-        tileBounds = new Bounds[tiles.Length];
-        tileBreaks = new FloorBreak[tiles.Length];
-        for (int i = 0; i < tiles.Length; i++)
+        floorColliders = new BoxCollider[floorBreaks.Length];
+        for (int i = 0; i < floorBreaks.Length; i++)
         {
-            tileBounds[i] = tiles[i].bounds;
-            tileBreaks[i] = tiles[i].GetComponentInChildren<FloorBreak>();
-            if (tileBreaks[i] == null)
-            {
-                Debug.LogError($"Grid tile {tiles[i].name} is missing FloorBreak.", tiles[i]);
+            floorColliders[i] = floorBreaks[i].GetComponentInParent<BoxCollider>();
+            if (floorColliders[i] == null)
                 return false;
-            }
-        }
-
-        Bounds bounds = tileBounds[0];
-        for (int i = 1; i < tiles.Length; i++)
-            bounds.Encapsulate(tileBounds[i]);
-
-        minX = bounds.min.x + edgePadding;
-        maxX = bounds.max.x - edgePadding;
-        minZ = bounds.min.z + edgePadding;
-        maxZ = bounds.max.z - edgePadding;
-        if (minX >= maxX || minZ >= maxZ)
-        {
-            Debug.LogError("The grid is too small for the worm's edge padding.", this);
-            return false;
         }
 
         return true;
     }
 
-    private bool FitWormInsideBoard()
+    private float MaxTravelOnFloors(Vector3 origin, Vector3 direction, float travel)
     {
-        float minBodyX = Mathf.Min(head.position.x, tail.position.x);
-        float maxBodyX = Mathf.Max(head.position.x, tail.position.x);
-        float minBodyZ = Mathf.Min(head.position.z, tail.position.z);
-        float maxBodyZ = Mathf.Max(head.position.z, tail.position.z);
-        float minShiftX = minX - minBodyX;
-        float maxShiftX = maxX - maxBodyX;
-        float minShiftZ = minZ - minBodyZ;
-        float maxShiftZ = maxZ - maxBodyZ;
-        if (minShiftX > maxShiftX || minShiftZ > maxShiftZ)
+        if (travel <= 0f)
+            return 0f;
+
+        // Check the whole route so a single stretch cannot jump over an empty floor.
+        float step = Mathf.Max(0.02f, headCollider.bounds.extents.x * 0.25f);
+        float lastSafe = 0f;
+        for (float distance = step; distance < travel; distance += step)
         {
-            Debug.LogError("The worm is too long to fit inside the grid.", this);
-            return false;
+            if (FindFloorAt(origin + direction * distance) == null)
+                return lastSafe;
+            lastSafe = distance;
         }
 
-        transform.position += new Vector3(
-            Mathf.Clamp(0f, minShiftX, maxShiftX),
-            0f,
-            Mathf.Clamp(0f, minShiftZ, maxShiftZ));
-        return true;
+        return FindFloorAt(origin + direction * travel) == null ? lastSafe : travel;
     }
 
-    private float MaxTravelInsideBoard(Vector3 origin, Vector3 direction)
+    private void UpdateCurrentFloor()
     {
-        float travel = float.PositiveInfinity;
-        if (direction.x > 0.000001f)
-            travel = Mathf.Min(travel, (maxX - origin.x) / direction.x);
-        else if (direction.x < -0.000001f)
-            travel = Mathf.Min(travel, (minX - origin.x) / direction.x);
-
-        if (direction.z > 0.000001f)
-            travel = Mathf.Min(travel, (maxZ - origin.z) / direction.z);
-        else if (direction.z < -0.000001f)
-            travel = Mathf.Min(travel, (minZ - origin.z) / direction.z);
-
-        return Mathf.Max(0f, travel);
-    }
-
-    private void UpdateCurrentTile()
-    {
-        int nextTile = FindTile(head.position);
-        if (nextTile < 0 || nextTile == currentTile || damagedTiles[nextTile])
+        FloorBreak nextFloor = FindFloorAt(head.position);
+        if (nextFloor == null || nextFloor == currentFloor)
             return;
 
-        if (currentTile >= 0)
-            damagedTiles[currentTile] = true;
-
-        currentTile = nextTile;
-        tileBreaks[currentTile].PlayBreak();
+        currentFloor = nextFloor;
+        currentFloor.PlayBreak();
     }
 
-    private int FindTile(Vector3 position)
+    private FloorBreak FindFloorAt(Vector3 position)
     {
-        for (int i = 0; i < tileBounds.Length; i++)
-        {
-            Bounds bounds = tileBounds[i];
-            if (position.x >= bounds.min.x && position.x < bounds.max.x &&
-                position.z >= bounds.min.z && position.z < bounds.max.z)
-                return i;
-        }
+        FloorBreak nearest = null;
+        float nearestDistance = float.PositiveInfinity;
 
-        return -1;
-    }
-
-    private float MaxTravelBeforeDamage(Vector3 origin, Vector3 direction, float travel)
-    {
-        for (int i = 0; i < tileBounds.Length; i++)
+        for (int i = 0; i < floorColliders.Length; i++)
         {
-            if (!damagedTiles[i] || !TryEnterTile(origin, direction, tileBounds[i], out float entry))
+            BoxCollider floor = floorColliders[i];
+            FloorBreak floorBreak = floorBreaks[i];
+            if (floor == null || !floor.enabled || !floor.gameObject.activeInHierarchy ||
+                floorBreak == null || (floorBreak.IsBreaking && floorBreak != currentFloor))
                 continue;
 
-            if (entry <= travel)
-                travel = Mathf.Max(0f, entry - 0.001f);
+            Bounds bounds = floor.bounds;
+            if (position.x < bounds.min.x || position.x >= bounds.max.x ||
+                position.z < bounds.min.z || position.z >= bounds.max.z)
+                continue;
+
+            if (!Physics.ComputePenetration(
+                    headCollider, position, head.rotation,
+                    floor, floor.transform.position, floor.transform.rotation,
+                    out _, out _))
+                continue;
+
+            float dx = position.x - bounds.center.x;
+            float dz = position.z - bounds.center.z;
+            float distance = dx * dx + dz * dz;
+            if (distance >= nearestDistance)
+                continue;
+
+            nearest = floorBreak;
+            nearestDistance = distance;
         }
 
-        return travel;
-    }
-
-    private static bool TryEnterTile(Vector3 origin, Vector3 direction, Bounds bounds, out float entry)
-    {
-        float near = float.NegativeInfinity;
-        float far = float.PositiveInfinity;
-
-        if (Mathf.Abs(direction.x) < 0.000001f)
-        {
-            if (origin.x < bounds.min.x || origin.x >= bounds.max.x)
-            {
-                entry = 0f;
-                return false;
-            }
-        }
-        else
-        {
-            float a = (bounds.min.x - origin.x) / direction.x;
-            float b = (bounds.max.x - origin.x) / direction.x;
-            near = Mathf.Max(near, Mathf.Min(a, b));
-            far = Mathf.Min(far, Mathf.Max(a, b));
-        }
-
-        if (Mathf.Abs(direction.z) < 0.000001f)
-        {
-            if (origin.z < bounds.min.z || origin.z >= bounds.max.z)
-            {
-                entry = 0f;
-                return false;
-            }
-        }
-        else
-        {
-            float a = (bounds.min.z - origin.z) / direction.z;
-            float b = (bounds.max.z - origin.z) / direction.z;
-            near = Mathf.Max(near, Mathf.Min(a, b));
-            far = Mathf.Min(far, Mathf.Max(a, b));
-        }
-
-        entry = Mathf.Max(0f, near);
-        return far > entry + 0.000001f;
+        return nearest;
     }
 }

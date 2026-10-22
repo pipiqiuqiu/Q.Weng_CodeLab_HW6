@@ -7,6 +7,8 @@ public class FloorBreak : MonoBehaviour
 {
     public static event Action FloorDestroyed;
 
+    public bool IsBreaking => started;
+
     private bool started;
     private bool destroyed;
 

@@ -16,6 +16,7 @@ public sealed class GameHUD : MonoBehaviour
     [SerializeField] private ScoreRecordData recordData;
     [SerializeField] private InchwormLocomotion player;
     [SerializeField] private HeadDirectionSweep directionIndicator;
+    [SerializeField] private GridBoardRandomizer boardRandomizer;
     [SerializeField] private Text scoreText;
     [SerializeField] private Text timerText;
     [SerializeField] private Text startPrompt;
@@ -33,12 +34,12 @@ public sealed class GameHUD : MonoBehaviour
 
     private void Awake()
     {
-        if (recordData == null || player == null || directionIndicator == null ||
+        if (recordData == null || player == null || directionIndicator == null || boardRandomizer == null ||
             scoreText == null || timerText == null || startPrompt == null ||
             bestRankTexts == null || bestRankTexts.Length != RecordLimit ||
             worstRankTexts == null || worstRankTexts.Length != RecordLimit)
         {
-            Debug.LogError("GameHUD needs the player, direction indicator, records, and all UI Text references.", this);
+            Debug.LogError("GameHUD needs the player, direction indicator, board randomizer, records, and all UI Text references.", this);
             enabled = false;
             return;
         }
@@ -123,6 +124,9 @@ public sealed class GameHUD : MonoBehaviour
 
     private void StartRound()
     {
+        if (!boardRandomizer.RemoveRandomFloors())
+            return;
+
         state = RoundState.Playing;
         directionIndicator.enabled = true;
         player.enabled = true;
