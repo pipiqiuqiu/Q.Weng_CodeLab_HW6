@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: ScoreRecords
   m_EditorClassIdentifier: Assembly-CSharp::ScoreRecordData
   bestCount: 3
-  bestScores: 520000004d0000004b000000i
+  bestScores: 5f000000520000004d000000i
   worstCount: 3
-  worstScores: 130000001a00000029000000i
+  worstScores: 030000000600000007000000i

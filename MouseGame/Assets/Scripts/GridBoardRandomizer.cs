@@ -4,16 +4,13 @@ using UnityEngine;
 public sealed class GridBoardRandomizer : MonoBehaviour
 {
     [SerializeField, Min(0)] private int floorsToRemove = 5;
-    [SerializeField] private Transform head;
-    [SerializeField] private Transform middleFront;
-    [SerializeField] private Transform middleBack;
-    [SerializeField] private Transform tail;
+    [SerializeField] private Transform ball;
 
     public bool RemoveRandomFloors()
     {
-        if (head == null || middleFront == null || middleBack == null || tail == null)
+        if (ball == null)
         {
-            Debug.LogError("GridBoardRandomizer needs all four worm segments.", this);
+            Debug.LogError("GridBoardRandomizer needs the ball Transform.", this);
             return false;
         }
 
@@ -29,10 +26,7 @@ public sealed class GridBoardRandomizer : MonoBehaviour
             }
 
             Bounds bounds = collider.bounds;
-            if (ContainsXZ(bounds, head.position) ||
-                ContainsXZ(bounds, middleFront.position) ||
-                ContainsXZ(bounds, middleBack.position) ||
-                ContainsXZ(bounds, tail.position))
+            if (ContainsXZ(bounds, ball.position))
                 continue;
 
             candidates.Add(collider.gameObject);

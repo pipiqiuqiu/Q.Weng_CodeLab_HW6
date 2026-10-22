@@ -14,7 +14,7 @@ public sealed class GameHUD : MonoBehaviour
 
     [SerializeField, Min(1f)] private float roundDuration = 30f;
     [SerializeField] private ScoreRecordData recordData;
-    [SerializeField] private InchwormLocomotion player;
+    [SerializeField] private BallLocomotion player;
     [SerializeField] private HeadDirectionSweep directionIndicator;
     [SerializeField] private GridBoardRandomizer boardRandomizer;
     [SerializeField] private Text scoreText;
@@ -67,11 +67,15 @@ public sealed class GameHUD : MonoBehaviour
     private void OnEnable()
     {
         FloorBreak.FloorDestroyed += AddPoint;
+        if (player != null)
+            player.BlockedTooLong += FinishRound;
     }
 
     private void OnDisable()
     {
         FloorBreak.FloorDestroyed -= AddPoint;
+        if (player != null)
+            player.BlockedTooLong -= FinishRound;
     }
 
     private void Update()
@@ -105,6 +109,8 @@ public sealed class GameHUD : MonoBehaviour
 
     private void FinishRound()
     {
+        if (state != RoundState.Playing) return;
+
         state = RoundState.Resetting;
         player.enabled = false;
         directionIndicator.enabled = false;

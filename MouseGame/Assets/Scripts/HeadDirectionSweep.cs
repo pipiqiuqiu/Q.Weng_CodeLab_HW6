@@ -19,9 +19,15 @@ public sealed class HeadDirectionSweep : MonoBehaviour
         radius = new Vector2(offset.x, offset.z).magnitude;
         height = offset.y;
         SetAngle(0f);
+        UpdateAim();
     }
 
-    private void LateUpdate()
+    private void Update()
+    {
+        UpdateAim();
+    }
+
+    private void UpdateAim()
     {
         if (head == null || Mouse.current == null)
             return;
